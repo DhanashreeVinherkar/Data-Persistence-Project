@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.SocialPlatforms.Impl;
 using UnityEngine.UI;
 
 public class MainManager : MonoBehaviour
@@ -11,17 +13,29 @@ public class MainManager : MonoBehaviour
     public Rigidbody Ball;
 
     public Text ScoreText;
+    public Text BestScoreText;
     public GameObject GameOverText;
     
     private bool m_Started = false;
     private int m_Points;
+    private int m_BestScore;
     
     private bool m_GameOver = false;
 
-    
+    private void Awake()
+    {
+        LoadScore();
+    }
+
+
     // Start is called before the first frame update
     void Start()
     {
+        if (StartMenuManager.Instance != null)
+        {
+            SetName(StartMenuManager.Instance.playerName);
+        }
+
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
         
@@ -66,11 +80,52 @@ public class MainManager : MonoBehaviour
     {
         m_Points += point;
         ScoreText.text = $"Score : {m_Points}";
+        if (m_BestScore < m_Points)
+        {
+            m_BestScore = m_Points;
+        }
+    }
+
+    private void SetName(string name)
+    {
+        BestScoreText.text = $"Best Score : {name} : {m_BestScore}";
     }
 
     public void GameOver()
     {
         m_GameOver = true;
         GameOverText.SetActive(true);
+        SaveScore();
     }
+
+    public void SaveScore()
+    {
+        SaveData data = new SaveData();
+        data.score = m_BestScore;
+
+        string json = JsonUtility.ToJson(data);
+
+        File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+
+        Debug.Log($"saving {m_BestScore} points");
+    }
+
+    public void LoadScore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+
+            m_BestScore = data.score;
+            Debug.Log($"saving {m_BestScore} points");
+        }
+    }
+}
+
+[System.Serializable]
+class SaveData
+{
+    public int score;
 }
